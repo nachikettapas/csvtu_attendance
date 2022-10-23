@@ -9,24 +9,28 @@ function baseworkFunction() {
   var employeeName = "";
   
   var weekDays = data[6].filter(Boolean);
-  var satIndex = [];
-  var sunIndex = [];
+  var extraIndex = [];
   var workIndex = [];
   
   for(i=1; i<weekDays.length; i++) {                              //Code to find index of Saturdays and Sundays
     if(weekDays[i].toString().split(" ")[1].trim() === "S")
-      sunIndex.push(i);
-    else if(weekDays[i].toString().split(" ")[1].trim() === "St") 
-      satIndex.push(i);
+      extraIndex.push(i);
+    else if(weekDays[i].toString().split(" ")[1].trim() === "St") {
+      var num = weekDays[i].toString().split(" ")[0].trim();
+      if( ( parseInt( num ) >= 8 && parseInt( num ) <= 15 ) || ( parseInt( num ) >= 15 && parseInt( num ) <= 22 ) ) 
+        extraIndex.push(i);
+      else
+        workIndex.push(i);
+    }
     else
       workIndex.push(i);
   }
   
-  for(i=8; i<770;) {                                         //Currently it is till 20th record, make it to length for final code
+  for(i=8; i<data.length;) {                                         //Currently it is till 20th record, make it to length for final code
     var regExp = new RegExp("epartment","g");
-    var index;
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var deptSheet;
+    var index, deptSheet;
+
     if(data[i].toString().match(regExp)) {
       if(i !== 8) {
         deptSheet.getRange(index + 3,1,5,5).merge().setBorder(true,true,true,true,true,true);
@@ -58,42 +62,26 @@ function baseworkFunction() {
       deptSheet.setColumnWidth(12,200);
       index = 1; 
       i += 2;
+      console.log("Value of I : " + i);
     }
     else {
+      //Following variable is used to push data to excel at once.
       var employeeData = [];
-      var employeeAttendance = [];
-      var employeeExtraAttendance = [];
-      
+
       employeeCode = data[i].filter(Boolean)[1];
       employeeName = data[i].filter(Boolean)[3];
-      const workResults = data[i+1].filter(Boolean).filter((e, i) => workIndex.includes(i));
-      employeeAttendance = employeeAttendance.concat(workResults);
-      const satResults = data[i+1].filter(Boolean).filter((e, i) => satIndex.includes(i));
-      employeeAttendance = employeeAttendance.concat(satResults[0]);
-      employeeAttendance = employeeAttendance.concat(satResults[3]);
-      if(satResults.length == 5)
-       employeeAttendance = employeeAttendance.concat(satResults[4]);
-      employeeExtraAttendance = employeeExtraAttendance.concat(satResults[1]);
-      employeeExtraAttendance = employeeExtraAttendance.concat(satResults[2]);
-      const sunResults = data[i+1].filter(Boolean).filter((e, i) => sunIndex.includes(i));
-      employeeExtraAttendance = employeeExtraAttendance.concat(sunResults);
+      employeeAttendance = data[i+1].filter(Boolean).filter((e, i) => workIndex.includes(i));
+      employeeExtraAttendance = data[i+1].filter(Boolean).filter((e, i) => extraIndex.includes(i));
       
+      //Following code takes care of any merged cells
       var cleanedData = data[i+2].filter(Boolean);
       for(j=0; j<data[i+1].filter(Boolean).length; j++) {
         if(data[i+1].filter(Boolean)[j] === "A")
           cleanedData.splice(j, 0, "A");
       }
       
-      var workTimeData = cleanedData.filter((e, i) => workIndex.includes(i));
-      const satTimeData = cleanedData.filter((e, i) => satIndex.includes(i));
-      console.log("Work index : " + workIndex);
-      console.log("Before Work Data : " + workTimeData);
-      workTimeData = workTimeData.concat(satTimeData[0]);
-      workTimeData = workTimeData.concat(satTimeData[3]);
-      if(satTimeData.length == 5)
-        workTimeData = workTimeData.concat(satTimeData[4]);
-      console.log("After Work Data : " + workTimeData);
-      var workTimeResults = workTimeData.filter((value) => {
+      workTimeData = cleanedData.filter(Boolean).filter((e, i) => workIndex.includes(i));
+      var employeeTimeAttendance = workTimeData.filter((value) => {
         var timeA = new Date();
         timeA.setHours(value.split(":")[0], value.split(":")[1], "00");
         var timeB = new Date();
@@ -103,15 +91,15 @@ function baseworkFunction() {
         else
           return false;
       });
-
-      employeeData.push(
-        [
+      employeeExtraTimeAttendance = cleanedData.filter(Boolean).filter((e, i) => extraIndex.includes(i));
+      
+      employeeData.push([
           index.toString(), 
           employeeCode, 
           employeeName, 
-          (( employeeAttendance.filter(item => (item !== "A") && (item !== "Status")).length * 100 ) / employeeAttendance.length ).toFixed(2) + " %", 
-          (( workTimeResults.length * 100 ) / employeeAttendance.length ).toFixed(2) + " %", 
-          ( employeeExtraAttendance.filter(item => (item !== "A") && (item !== "Status"))).length
+          (( employeeAttendance.filter(item => (item !== "A") ).length * 100 ) / employeeAttendance.length ).toFixed(2) + " %", 
+          (( employeeTimeAttendance.length * 100 ) / employeeAttendance.length ).toFixed(2) + " %", 
+          ( employeeExtraAttendance.filter(item => (item !== "A") )).length
         ]);
       deptSheet.getRange(index + 2,1,1,6).setValues(employeeData).setHorizontalAlignment("center").setVerticalAlignment("top");
       //Code to insert drop down list for behaviour
@@ -121,6 +109,14 @@ function baseworkFunction() {
       deptSheet.getRange(index + 2,1,1,12).setBorder(true,true,true,true,true,true);
       index += 1;
       i += 6;
+      console.log("Value of I : " + i);
     }
   }
+  //Code to print for last page
+  deptSheet.getRange(index + 3,1,5,5).merge().setBorder(true,true,true,true,true,true);
+  deptSheet.getRange(index + 3,6,5,5).merge().setBorder(true,true,true,true,true,true);
+  deptSheet.getRange(index + 3,11,5,2).merge().setBorder(true,true,true,true,true,true);
+  deptSheet.getRange(index + 3,1).setValue("स्थापना लिपिक \n (हस्ताक्षर)").setHorizontalAlignment("center");
+  deptSheet.getRange(index + 3,6).setValue("विशेष कर्तव्यस्थ अधिकारी \n (हस्ताक्षर)").setHorizontalAlignment("center");
+  deptSheet.getRange(index + 3,11).setValue("विभाग प्रमुख/ शाखा प्रमुख \n (हस्ताक्षर)").setHorizontalAlignment("center");
 }
